@@ -132,6 +132,7 @@ class PeftConfigMixin(PushToHubMixin):
         return json_object
 
 
+# model config
 @dataclass
 class PeftConfig(PeftConfigMixin):
     """
@@ -149,6 +150,7 @@ class PeftConfig(PeftConfigMixin):
     inference_mode: bool = field(default=False, metadata={"help": "Whether to use inference mode"})
 
 
+# common algorithm config
 @dataclass
 class PromptLearningConfig(PeftConfig):
     """

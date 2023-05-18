@@ -31,6 +31,7 @@ from .tuners import (
 from .utils import PromptLearningConfig
 
 
+# model type（针对prompt，判断是encoder，decoder，encoder-decoder）
 MODEL_TYPE_TO_PEFT_MODEL_MAPPING = {
     "SEQ_CLS": PeftModelForSequenceClassification,
     "SEQ_2_SEQ_LM": PeftModelForSeq2SeqLM,
@@ -38,6 +39,7 @@ MODEL_TYPE_TO_PEFT_MODEL_MAPPING = {
     "TOKEN_CLS": PeftModelForTokenClassification,
 }
 
+# peft type config
 PEFT_TYPE_TO_CONFIG_MAPPING = {
     "ADAPTION_PROMPT": AdaptionPromptConfig,
     "PROMPT_TUNING": PromptTuningConfig,
@@ -55,11 +57,13 @@ def get_peft_config(config_dict):
     Args:
         config_dict (`Dict[str, Any]`): Dictionary containing the configuration parameters.
     """
+    # peft_type 及实例化peft config 的参数都在 config_dict中
 
     return PEFT_TYPE_TO_CONFIG_MAPPING[config_dict["peft_type"]](**config_dict)
 
 
 def _prepare_prompt_learning_config(peft_config, model_config):
+    # 1.get num_layers
     if peft_config.num_layers is None:
         if "num_hidden_layers" in model_config:
             num_layers = model_config["num_hidden_layers"]
@@ -71,6 +75,7 @@ def _prepare_prompt_learning_config(peft_config, model_config):
             raise ValueError("Please specify `num_layers` in `peft_config`")
         peft_config.num_layers = num_layers
 
+    # 2.get token_dim==d_model
     if peft_config.token_dim is None:
         if "hidden_size" in model_config:
             token_dim = model_config["hidden_size"]
@@ -82,6 +87,7 @@ def _prepare_prompt_learning_config(peft_config, model_config):
             raise ValueError("Please specify `token_dim` in `peft_config`")
         peft_config.token_dim = token_dim
 
+    # 3.get_attention_heads
     if peft_config.num_attention_heads is None:
         if "num_attention_heads" in model_config:
             num_attention_heads = model_config["num_attention_heads"]
@@ -111,10 +117,15 @@ def get_peft_model(model, peft_config):
     """
     model_config = model.config.to_dict() if hasattr(model.config, "to_dict") else model.config
     peft_config.base_model_name_or_path = model.__dict__.get("name_or_path", None)
+    # 如果peft_config不属于PromptLearningConfig（prompt类），
+    # 或peft_config.task_type不在mapping中（未确定任务类型），直接修改模型即可。
     if peft_config.task_type not in MODEL_TYPE_TO_PEFT_MODEL_MAPPING.keys() and not isinstance(
         peft_config, PromptLearningConfig
     ):
         return PeftModel(model, peft_config)
+
+    # 如果peft_config属于PromptLearningConfig（PrefixTuning, PromptEncoder,
+    # PromptTuning）需要确定任务类型，判断在encoder还是decoder添加。
     if isinstance(peft_config, PromptLearningConfig):
         peft_config = _prepare_prompt_learning_config(peft_config, model_config)
     return MODEL_TYPE_TO_PEFT_MODEL_MAPPING[peft_config.task_type](model, peft_config)

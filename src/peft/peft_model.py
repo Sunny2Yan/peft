@@ -51,6 +51,7 @@ from .utils import (
 )
 
 
+# peft model type
 PEFT_TYPE_TO_MODEL_MAPPING = {
     PeftType.LORA: LoraModel,
     PeftType.PROMPT_TUNING: PromptEmbedding,
@@ -94,6 +95,7 @@ class PeftModel(PushToHubMixin, torch.nn.Module):
         self.active_adapter = adapter_name
         self.peft_type = peft_config.peft_type
         self.base_model_torch_dtype = getattr(model, "dtype", None)
+        # 判断是否对prompt修改，若是则需要判断任务类型（encoder，decoder，encoder-decoder）
         if not isinstance(peft_config, PromptLearningConfig):
             self.peft_config[adapter_name] = peft_config
             self.base_model = PEFT_TYPE_TO_MODEL_MAPPING[peft_config.peft_type](
@@ -182,13 +184,15 @@ class PeftModel(PushToHubMixin, torch.nn.Module):
         return model
 
     def _setup_prompt_encoder(self, adapter_name):
+        """"在encoder上添加adapter"""
         config = self.peft_config[adapter_name]
         self.prompt_encoder = torch.nn.ModuleDict({})
         self.prompt_tokens = {}
         transformer_backbone = None
+        # ???
         for name, module in self.base_model.named_children():
             for param in module.parameters():
-                param.requires_grad = False
+                param.requires_grad = False  # fix the base model parameters
             if isinstance(module, PreTrainedModel):
                 # Make sure to freeze Tranformers model
                 if transformer_backbone is None:

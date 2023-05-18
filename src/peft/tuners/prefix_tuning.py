@@ -84,12 +84,13 @@ class PrefixEncoder(torch.nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.prefix_projection = config.prefix_projection
+        self.prefix_projection = config.prefix_projection  # 是否在投影前加prefix
         token_dim = config.token_dim
         num_layers = config.num_layers
         encoder_hidden_size = config.encoder_hidden_size
-        num_virtual_tokens = config.num_virtual_tokens
+        num_virtual_tokens = config.num_virtual_tokens  # 使用 virtual token的数量
         if self.prefix_projection and not config.inference_mode:
+            # 如果在投影前加prefix
             # Use a two-layer MLP to encode the prefix
             self.embedding = torch.nn.Embedding(num_virtual_tokens, token_dim)
             self.transform = torch.nn.Sequential(
